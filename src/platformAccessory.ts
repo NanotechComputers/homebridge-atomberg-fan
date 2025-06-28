@@ -156,18 +156,25 @@ export class AtombergFanPlatformAccessory {
    * These are sent when the user changes the spped of the fan
    */
   async setRotationSpeed(value: CharacteristicValue) {
-    this.validateDeviceConnectionStatus();
+    this.platform.log.debug('Fan Speed CharacteristicValue -> ', value);
+   const newSpeed = (val: number): number => {
+     if (val === 0) return 0;
+     if (val <= 16.66) return 1;
+     if (val <= 33.33) return 2;
+     if (val <= 50) return 3;
+     if (val <= 66.66) return 4;
+     if (val <= 83.33) return 5;
+     return 6;
+   };
+   const speedValue = newSpeed(value as number);
+   this.fanState.last_recorded_speed = speedValue;
 
-    // implement your own code to set the brightness
-    const newSpeed = (value as number)/20;
-    this.fanState.last_recorded_speed = newSpeed;
-
-    this.platform.log.debug('Set Characteristic Speed -> ', newSpeed);
-    const cmdData = {
-      'device_id': this.accessory.context.device.device_id,
-      'command': {'speed': newSpeed},
-    } as AtombergFanCommandData;
-    this.sendDeviceUpdate(cmdData);
+   this.platform.log.debug('Set Characteristic Speed -> ', speedValue);
+   const cmdData = {
+     'device_id': this.accessory.context.device.device_id,
+     'command': { 'speed': speedValue },
+   } as AtombergFanCommandData;
+   this.sendDeviceUpdate(cmdData);
   }
 
   /**
@@ -247,11 +254,11 @@ export class AtombergFanPlatformAccessory {
 
       // Rotation Speed
       let fanSpeed = deviceState.last_recorded_speed;
-      if (fanSpeed > 5) {
-        fanSpeed = 5;
+      if (fanSpeed > 6) {
+        fanSpeed = 6;
       }
       this.fanService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-        .updateValue(fanSpeed*20);
+         .updateValue(Math.round(fanSpeed * (100 / 6)));
 
     } catch (error) {
       this.platform.log.error('An error occurred while refreshing the device status. ' +
